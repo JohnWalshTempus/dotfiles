@@ -1,0 +1,7 @@
+README.md
+LICENSE
+{{- if not (stat (joinPath .chezmoi.homeDir ".claude/agents/coordinator.md")) }}
+.zsh/claude.zsh
+.config/workmux
+.config/workmux/**
+{{- end }}

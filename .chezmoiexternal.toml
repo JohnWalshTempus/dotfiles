@@ -1,0 +1,12 @@
+[".antidote"]
+    type = "git-repo"
+    url = "https://github.com/mattmc3/antidote.git"
+    clone.args = ["--depth", "1"]
+    pull.args = ["--ff-only"]
+{{- if and .work .workRepoUrl }}
+
+[".zsh/work"]
+    type = "git-repo"
+    url = {{ .workRepoUrl | quote }}
+    pull.args = ["--ff-only"]
+{{- end }}

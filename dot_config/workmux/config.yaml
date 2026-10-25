@@ -1,0 +1,5 @@
+worktree_dir: ~/Dev/worktrees
+agents:
+  cc-coord: "claude --agent coordinator"
+  cc-impl: "claude --agent implementer"
+nerdfont: true

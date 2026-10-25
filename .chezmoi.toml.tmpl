@@ -1,0 +1,17 @@
+{{- $work := promptBoolOnce . "work" "work machine" false -}}
+{{- $name := promptStringOnce . "name" "git name" -}}
+{{- $email := promptStringOnce . "email" "git email" -}}
+{{- $signingKey := promptStringOnce . "signingKey" "gpg signing key id (blank for none)" "" -}}
+{{- $githubUser := promptStringOnce . "githubUser" "github username (blank for none)" "" -}}
+{{- $workRepoUrl := "" -}}
+{{- if $work -}}
+{{-   $workRepoUrl = promptStringOnce . "workRepoUrl" "work layer git ssh url (blank for local-only)" "" -}}
+{{- end -}}
+
+[data]
+    work = {{ $work }}
+    name = {{ $name | quote }}
+    email = {{ $email | quote }}
+    signingKey = {{ $signingKey | quote }}
+    githubUser = {{ $githubUser | quote }}
+    workRepoUrl = {{ $workRepoUrl | quote }}

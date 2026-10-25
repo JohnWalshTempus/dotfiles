@@ -1,0 +1,77 @@
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+[[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
+
+export ZSH=$HOME/.zsh
+
+source $HOME/.antidote/antidote.zsh
+antidote load
+autoload -Uz compinit && compinit
+
+for config ($ZSH/*.zsh) source $config
+
+export VISUAL=nvim
+export EDITOR=$VISUAL
+export GPG_TTY=$TTY
+
+[[ -r $HOMEBREW_PREFIX/opt/powerlevel10k/powerlevel10k.zsh-theme ]] && source $HOMEBREW_PREFIX/opt/powerlevel10k/powerlevel10k.zsh-theme
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+
+function set_nvm() {
+  local nvmrc_path="$(nvm_find_nvmrc)"
+  if [ -n "$nvmrc_path" ]; then
+      local nvmrc_node_version=$(nvm version "$(cat "${nvmrc_path}")")
+      if [ "$nvmrc_node_version" = "N/A" ]; then
+        nvm install
+      elif [ "$nvmrc_node_version" != "$node_version" ]; then
+        nvm use
+      fi
+  fi
+}
+
+chpwd_functions+=(set_nvm)
+
+export PYENV_ROOT="$HOME/.pyenv"
+command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
+command -v pyenv >/dev/null && eval "$(pyenv init -)"
+
+for f ($ZSH/work/*.zsh(N)) source $f
+
+[[ -d "/Applications/Visual Studio Code.app/Contents/Resources/app/bin" ]] && export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
+export PATH="$HOME/.local/bin:$PATH"
+
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+
+autoload -U up-line-or-beginning-search
+autoload -U down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+
+bindkey -M viins '^[[A' up-line-or-beginning-search
+bindkey -M viins '^[[B' down-line-or-beginning-search
+
+bindkey -M vicmd 'k' up-line-or-beginning-search
+bindkey -M vicmd 'j' down-line-or-beginning-search
+
+# NVM. Must come after every PATH prepend above, otherwise nvm's bin lands
+# behind /opt/homebrew/bin and `nvm use` reports success while node still
+# resolves to Homebrew.
+#
+# The path filter drops nvm entries inherited from the parent process (a stale
+# tmux server env, or a shell that launched a long-running tool): nvm
+# substitutes an existing entry in place rather than moving it to the front, so
+# an inherited one would keep it shadowed.
+#
+# --no-use leaves Homebrew node as the fallback outside .nvmrc projects.
+# Calling set_nvm here, not just from chpwd, is what makes a new tmux pane
+# opened inside a project honour its .nvmrc.
+path=("${(@)path:#$NVM_DIR/versions/node/*}")
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" --no-use
+command -v nvm_find_nvmrc >/dev/null && set_nvm
