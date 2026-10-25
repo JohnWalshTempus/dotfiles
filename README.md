@@ -1,6 +1,6 @@
 # dotfiles
 
-macOS shell, git, tmux and kitty configuration managed with [chezmoi](https://www.chezmoi.io): zsh with [antidote](https://github.com/mattmc3/antidote) and [powerlevel10k](https://github.com/romkatv/powerlevel10k), a templated git config, tmux with a `C-Space` prefix and vi copy-mode, and kitty.
+macOS shell, git, tmux and kitty configuration managed with [chezmoi](https://www.chezmoi.io): zsh with [antidote](https://github.com/mattmc3/antidote) and [starship](https://starship.rs), a templated git config, tmux with a `C-Space` prefix and vi copy-mode, and kitty.
 
 ## Bootstrap
 
@@ -53,8 +53,8 @@ These are never managed by this repo and are picked up when present:
 ## Optional dependencies
 
 ```sh
-brew install powerlevel10k eza git-delta neovim tmux
+brew install starship eza git-delta neovim tmux
 brew install --cask kitty font-blex-mono-nerd-font
 ```
 
-Each is optional: without eza `ls` stays plain, without delta the git pager sections are omitted, and without powerlevel10k the default prompt is used. nvm, pyenv and sdkman hooks are no-ops when the tool is absent. Installing delta or git-lfs later needs a `chezmoi apply` to render their git sections.
+Each is optional: without eza `ls` stays plain, without delta the git pager sections are omitted, and without starship the default prompt is used. nvm, pyenv and sdkman hooks are no-ops when the tool is absent. Installing delta or git-lfs later needs a `chezmoi apply` to render their git sections.

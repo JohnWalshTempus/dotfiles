@@ -1,0 +1,35 @@
+add_newline = false
+
+format = """
+$directory$git_branch$git_state$git_status$fill$status$cmd_duration$jobs$nodejs$python\
+$line_break$character"""
+
+[fill]
+symbol = " "
+
+[status]
+disabled = false
+
+[cmd_duration]
+min_time = 3000
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold green)"
+
+[directory]
+truncation_length = 4
+truncate_to_repo = false
+
+[gcloud]
+disabled = true
+
+[kubernetes]
+disabled = true
+
+[aws]
+disabled = true
+
+[package]
+disabled = true
