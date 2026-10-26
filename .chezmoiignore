@@ -5,3 +5,7 @@ LICENSE
 .config/workmux
 .config/workmux/**
 {{- end }}
+{{- if ne .chezmoi.os "darwin" }}
+.tmux/bin
+.tmux/bin/**
+{{- end }}

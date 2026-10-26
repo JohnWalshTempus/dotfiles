@@ -49,6 +49,7 @@ These are never managed by this repo and are picked up when present:
 - `~/.zshrc.local`, sourced near the end of `~/.zshrc`
 - `~/.zsh/work/*.zsh`, sourced before `~/.local/bin` is added to `PATH`
 - `~/.gitconfig.local`, included last so its values win
+- `~/.tmux.conf.local`, sourced last so its bindings win
 
 ## Optional dependencies
 
@@ -58,3 +59,17 @@ brew install --cask kitty font-blex-mono-nerd-font
 ```
 
 Each is optional: without eza `ls` stays plain, without delta the git pager sections are omitted, and without starship the default prompt is used. nvm, pyenv and sdkman hooks are no-ops when the tool is absent. Installing delta or git-lfs later needs a `chezmoi apply` to render their git sections.
+
+## Linux (Ubuntu)
+
+The same bootstrap works on Ubuntu. On the first apply, `run_once_before_10-install-packages-ubuntu.sh` installs zsh, tmux, eza and delta from apt, and neovim, starship and workmux into `~/.local/bin`, so expect a sudo prompt. Run `chezmoi apply` once more afterwards so the git config picks up delta, then switch shells with `chsh -s "$(command -v zsh)"`.
+
+On Linux the tmux status bar is orange and shows the hostname, and the battery indicator is skipped.
+
+## Nested tmux
+
+To avoid nesting, attach to a remote session from a terminal tab that isn't running tmux, e.g. `ssh -t <host> "tmux new -A -s main"`.
+
+When you are nested, press `F12` in the outer tmux to pass every key, prefix included, to the inner one. The outer status bar dims and shows `KEYS OFF`. Press `F12` again to take the keys back.
+
+Copies use OSC 52, so `y` in copy mode on a remote session lands in the local clipboard, through ssh and through an outer tmux.

@@ -1,5 +1,12 @@
+{{ if eq .chezmoi.os "darwin" -}}
 tm_icon="♟"
 tm_color_active=colour213
+{{- else }}
+# Servers get their own colour and show the hostname, so a nested session is
+# never mistaken for the local one
+tm_icon="⚙ #h"
+tm_color_active=colour214
+{{- end }}
 tm_color_inactive=colour241
 tm_color_blue=colour4
 tm_color_red=colour203
@@ -20,9 +27,14 @@ set-option -g display-panes-active-colour $tm_color_active
 set-option -g display-panes-colour $tm_color_inactive
 set-window-option -g clock-mode-colour $tm_color_active
 
+{{ if eq .chezmoi.os "darwin" -}}
 battery_percent="#(~/.tmux/bin/bash/battery_indicator.sh)"
+{{ else -}}
+battery_percent=""
+{{ end -}}
+tm_keys_off="#{?#{==:#{client_key_table},off},#[fg=$tm_color_inactive]KEYS OFF ,}"
 tm_date="#[fg=$tm_color_red] %a %h-%d %H:%M"
 tm_session_name="#[fg=$tm_color_blue,bold]$tm_icon #S"
 
 set -g status-left $tm_session_name' '
-set -g status-right $tm_date' '$battery_percent' '
+set -g status-right $tm_keys_off$tm_date' '$battery_percent' '

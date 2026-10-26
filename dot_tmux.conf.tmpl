@@ -15,7 +15,13 @@ set -g base-index 1
 setw -g pane-base-index 1
 
 setw -g mode-keys vi
+# OSC 52 sends copies to the local terminal's clipboard, through ssh and
+# through an outer tmux when nested
+set -s set-clipboard on
+set -as terminal-features ',xterm*:clipboard'
+{{- if eq .chezmoi.os "darwin" }}
 set -s copy-command 'pbcopy'
+{{- end }}
 
 bind r source-file ~/.tmux.conf \; display "Config Reloaded!"
 bind N new-window
@@ -43,8 +49,10 @@ bind p paste-buffer
 bind -Tcopy-mode-vi 'v' send -X begin-selection
 bind -Tcopy-mode-vi 'y' send -X copy-pipe-and-cancel
 
+{{ if eq .chezmoi.os "darwin" -}}
 bind C-c run 'tmux save-buffer - | pbcopy'
 bind C-v run 'pbpaste | tmux load-buffer - ; tmux paste-buffer'
+{{ end -}}
 
 bind C-s display-popup -h 30 -w 100 -E "workmux dashboard"
 bind C-t run-shell "workmux sidebar --session"
@@ -63,3 +71,20 @@ bind-key / copy-mode \; send-keys /
 bind-key ? copy-mode \; send-keys ?
 
 source ~/.tmux/theme.sh
+
+# F12 hands every key, prefix included, to a tmux nested inside this one (e.g.
+# ssh'd into a server session). The status bar dims while it's off; F12 again
+# takes the keys back.
+bind -T root F12 \
+  set prefix None \; \
+  set key-table off \; \
+  set status-style "fg=$tm_color_inactive" \; \
+  if -F '#{pane_in_mode}' 'send-keys -X cancel' \; \
+  refresh-client -S
+bind -T off F12 \
+  set -u prefix \; \
+  set -u key-table \; \
+  set -u status-style \; \
+  refresh-client -S
+
+source-file -q ~/.tmux.conf.local

@@ -1,0 +1,27 @@
+{{ if and (eq .chezmoi.os "linux") (eq .chezmoi.osRelease.id "ubuntu") -}}
+#!/bin/bash
+# Installs what the shell, git and tmux config expect on Ubuntu. chezmoi runs
+# this once per machine, and again only if this file changes.
+set -euo pipefail
+
+sudo apt-get update
+sudo apt-get install -y zsh tmux git curl eza git-delta
+
+mkdir -p "$HOME/.local/bin"
+export PATH="$HOME/.local/bin:$PATH"
+
+# Ubuntu's neovim is too old for current configs
+if ! command -v nvim >/dev/null; then
+  arch=$(uname -m)
+  [[ $arch == aarch64 ]] && arch=arm64
+  curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-$arch.tar.gz" | tar -xz -C "$HOME/.local"
+  ln -sf "$HOME/.local/nvim-linux-$arch/bin/nvim" "$HOME/.local/bin/nvim"
+fi
+
+command -v starship >/dev/null || curl -fsSL https://starship.rs/install.sh | sh -s -- -y -b "$HOME/.local/bin"
+command -v workmux >/dev/null || curl -fsSL https://raw.githubusercontent.com/raine/workmux/main/scripts/install.sh | WORKMUX_INSTALL_DIR="$HOME/.local/bin" bash
+
+if [[ $(getent passwd "$USER" | cut -d: -f7) != */zsh ]]; then
+  echo "Login shell is still $SHELL. Switch with: chsh -s $(command -v zsh)"
+fi
+{{ end -}}
