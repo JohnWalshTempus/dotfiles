@@ -5,3 +5,9 @@ function docker() {
   fi
   command docker "$@"
 }
+
+function review() {
+  local script=~/.local/share/review-tour/plain.sh
+  [[ -x $script ]] || { echo "review: $script not found" >&2; return 1; }
+  "$script" "${1:-.}" "${@:2}"
+}
