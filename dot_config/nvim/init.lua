@@ -221,6 +221,11 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
 
+-- nvim-treesitter installs parsers to `stdpath('data')/site`. lazy.nvim drops
+-- runtimepath entries that don't exist yet, so create it now or a fresh
+-- install can't find its parsers until Neovim restarts.
+vim.fn.mkdir(vim.fn.stdpath 'data' .. '/site', 'p')
+
 -- [[ Configure and install plugins ]]
 --
 --  To check the current status of your plugins, run
@@ -393,6 +398,13 @@ require('lazy').setup({
         --   },
         -- },
         -- pickers = {}
+        defaults = {
+          -- Telescope 0.1.x highlights previews through nvim-treesitter's old
+          -- `configs`/`parsers` API, which the `main` branch removed. Use regex
+          -- syntax highlighting in previews instead. Telescope 0.2+ calls
+          -- `vim.treesitter` directly, so drop this after upgrading it.
+          preview = { treesitter = false },
+        },
         extensions = {
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
@@ -889,45 +901,110 @@ require('lazy').setup({
   },
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
-    -- The default branch is now `main`, a rewrite without `nvim-treesitter.configs`.
-    -- Pin `master` so `:Lazy update` doesn't break this config.
-    branch = 'master',
+    -- `main` is a rewrite for Neovim 0.12+. It only installs parsers and queries;
+    -- highlighting, folding and indent are switched on per buffer below.
+    -- Installing parsers needs the `tree-sitter` CLI (0.26.1+, from a package
+    -- manager, not npm) and a C compiler. See `:help nvim-treesitter`.
+    branch = 'main',
+    lazy = false, -- main doesn't support lazy-loading
     build = ':TSUpdate',
-    main = 'nvim-treesitter.configs', -- Sets main module to use for opts
-    -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
-    opts = {
-      ensure_installed = {
-        'bash',
-        'c',
-        'diff',
-        'html',
-        'javascript',
-        'json',
-        'lua',
-        'luadoc',
-        'markdown',
-        'markdown_inline',
-        'query',
-        'tsx',
-        'typescript',
-        'vim',
-        'vimdoc',
-      },
-      -- Autoinstall languages that are not installed
-      auto_install = true,
-      highlight = {
-        enable = true,
-        -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-        --  If you are experiencing weird indenting issues, add the language to
-        --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
-      },
-      indent = { enable = true, disable = { 'ruby' } },
-    },
-    -- There are additional nvim-treesitter modules that you can use to interact
-    -- with nvim-treesitter. You should go explore a few and see what interests you:
+    config = function()
+      local ts = require 'nvim-treesitter'
+      local can_install = vim.fn.executable 'tree-sitter' == 1
+
+      -- Install these parsers on startup (a no-op once they're installed).
+      local startup_install -- async task; nil without the tree-sitter CLI
+      if can_install then
+        startup_install = ts.install {
+          'bash',
+          'c',
+          'diff',
+          'html',
+          'javascript',
+          'json',
+          'lua',
+          'luadoc',
+          'markdown',
+          'markdown_inline',
+          'query',
+          'tsx',
+          'typescript',
+          'vim',
+          'vimdoc',
+        }
+      end
+
+      -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
+      --  If you are experiencing weird indenting issues, add the language to this list.
+      local regex_languages = { ruby = true }
+
+      local function attach(buf, lang)
+        if not vim.api.nvim_buf_is_valid(buf) or not pcall(vim.treesitter.start, buf, lang) then
+          return false
+        end
+        if regex_languages[lang] then
+          vim.bo[buf].syntax = 'ON'
+        elseif vim.treesitter.query.get(lang, 'indents') then
+          vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+        end
+        return true
+      end
+
+      local function attach_after_install(buf, lang)
+        if not attach(buf, lang) then
+          return
+        end
+        -- The buffer's folds were computed before the parser existed. Parse now,
+        -- then re-set 'foldminlines' (drops Neovim's cached treesitter fold state)
+        -- and `zx` (recomputes the folds).
+        vim.treesitter.get_parser(buf, lang):parse()
+        for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+          vim.api.nvim_win_call(win, function()
+            vim.wo.foldminlines = vim.wo.foldminlines
+            vim.cmd 'normal! zx'
+          end)
+        end
+      end
+
+      -- Start treesitter for every filetype that has a parser. If there isn't one
+      -- yet but nvim-treesitter knows the language, install it and then start.
+      local available, tried = nil, {}
+      vim.api.nvim_create_autocmd('FileType', {
+        group = vim.api.nvim_create_augroup('kickstart-treesitter', { clear = true }),
+        callback = function(args)
+          local buf, lang = args.buf, vim.treesitter.language.get_lang(args.match)
+          if not lang then
+            return
+          end
+          if vim.treesitter.language.add(lang) then
+            return attach(buf, lang)
+          end
+          if not can_install or tried[lang] then
+            return
+          end
+          available = available or ts.get_available()
+          if not vim.list_contains(available, lang) then
+            return
+          end
+          tried[lang] = true
+          -- Let the startup install finish first: installing the same parser
+          -- twice at once hangs on nvim-treesitter's per-language lock.
+          startup_install:await(function()
+            vim.schedule(function()
+              ts.install(lang):await(function(err)
+                if not err then
+                  vim.schedule(function()
+                    attach_after_install(buf, lang)
+                  end)
+                end
+              end)
+            end)
+          end)
+        end,
+      })
+    end,
+    -- Other treesitter plugins worth a look:
     --
-    --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
     --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
     --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
   },
