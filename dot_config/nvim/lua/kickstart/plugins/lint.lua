@@ -41,13 +41,37 @@ return {
       -- lint.linters_by_ft['terraform'] = nil
       -- lint.linters_by_ft['text'] = nil
 
+      -- Only run linters whose executable is installed, so a missing tool
+      -- (e.g. markdownlint on a fresh machine) doesn't error on every buffer.
+      local function is_installed(name)
+        local linter = lint.linters[name]
+        if type(linter) == 'function' then
+          linter = linter()
+        end
+        local cmd = type(linter) == 'table' and linter.cmd or nil
+        if type(cmd) == 'function' then
+          cmd = cmd()
+        end
+        return type(cmd) == 'string' and vim.fn.executable(cmd) == 1
+      end
+
       -- Create autocommand which carries out the actual linting
       -- on the specified events.
       local lint_augroup = vim.api.nvim_create_augroup('lint', { clear = true })
       vim.api.nvim_create_autocmd({ 'BufEnter', 'BufWritePost', 'InsertLeave' }, {
         group = lint_augroup,
         callback = function()
-          lint.try_lint()
+          local names = {}
+          for _, ft in ipairs(vim.split(vim.bo.filetype, '.', { plain = true })) do
+            for _, name in ipairs(lint.linters_by_ft[ft] or {}) do
+              if not vim.list_contains(names, name) and is_installed(name) then
+                table.insert(names, name)
+              end
+            end
+          end
+          if #names > 0 then
+            lint.try_lint(names)
+          end
         end,
       })
     end,
