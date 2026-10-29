@@ -978,6 +978,9 @@ require('lazy').setup({
   },
 })
 
+-- Private key logger for the Vim course. See lua/custom/keylog.lua.
+require('custom.keylog').setup()
+
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
 --
