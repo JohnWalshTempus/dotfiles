@@ -14,6 +14,12 @@
 --     or whose path contains "secret".
 --   * Nothing is logged while `vim.g.keylog_disabled` is true (`:KeylogToggle`).
 --
+-- which-key replays: which-key reads the keys after a trigger (`g`, `z`,
+-- `<Space>`, `<C-W>`, and motions in operator-pending/visual mode) with
+-- getcharstr(), then re-feeds them with nvim_feedkeys(..., "mit"). The `t`
+-- flag makes Neovim report them to on_key as typed a second time, so keys
+-- which-key feeds that way are recorded and dropped when they come back.
+--
 -- Keys are buffered in memory and appended to disk about every 2s and on exit.
 
 local M = {}
@@ -146,11 +152,106 @@ local function schedule_flush()
   end
 end
 
+-- Keys which-key has fed back as "typed" and that haven't come through
+-- on_key yet, in order (keytrans() form), plus when the expectation lapses.
+local replay = {}
+local replay_head = 1
+local replay_deadline = 0
+
+local function now_ms()
+  local sec, usec = uv.gettimeofday()
+  return sec * 1000 + math.floor(usec / 1000)
+end
+
+local function expect_replay(feed)
+  for _, raw in ipairs(split_keys(feed)) do
+    replay[#replay + 1] = vim.fn.keytrans(raw)
+  end
+  -- The replay sits at the front of the typeahead, so it normally arrives
+  -- within a few ms. It can wait up to 'timeoutlen' when it's the prefix of
+  -- a longer mapping (e.g. `gr` vs `grn`), so allow that plus some slack.
+  replay_deadline = now_ms() + vim.o.timeoutlen + 1000
+end
+
+-- Returns true if `k` is the next key of a pending which-key replay (and
+-- consumes it). Any other key cancels the pending replay.
+local function is_replay(k)
+  if replay[replay_head] == nil then
+    return false
+  end
+  if replay[replay_head] == k and now_ms() <= replay_deadline then
+    replay_head = replay_head + 1
+    if replay[replay_head] == nil then
+      replay, replay_head = {}, 1
+    end
+    return true
+  end
+  replay, replay_head = {}, 1
+  return false
+end
+
+-- Wrap which-key's State.execute (the only place it feeds keys as typed) to
+-- capture exactly what it re-feeds. Behaviour is unchanged. Only runs once
+-- which-key is loaded, so it never changes when which-key loads.
+local function hook_which_key()
+  if not package.loaded['which-key'] then
+    return
+  end
+  local ok, State = pcall(require, 'which-key.state')
+  if not ok or type(State) ~= 'table' or type(State.execute) ~= 'function' or State._keylog_hooked then
+    return
+  end
+  local execute = State.execute
+  State._keylog_hooked = true
+  State.execute = function(...)
+    replay, replay_head = {}, 1
+    local api = vim.api
+    local feedkeys = api.nvim_feedkeys
+    api.nvim_feedkeys = function(keys, mode, escape_ks)
+      if type(keys) == 'string' and type(mode) == 'string' and mode:find('t', 1, true) then
+        expect_replay(escape_ks and api.nvim_replace_termcodes(keys, true, true, true) or keys)
+      end
+      return feedkeys(keys, mode, escape_ks)
+    end
+    local res = vim.F.pack_len(pcall(execute, ...))
+    api.nvim_feedkeys = feedkeys
+    if not res[1] then
+      error(res[2], 0)
+    end
+    return vim.F.unpack_len(res, 2)
+  end
+end
+
 local cur_sec, cur_date = -1, nil
 local enc = vim.json.encode
 
 local function on_key(_, typed)
-  if typed == nil or typed == '' or vim.g.keylog_disabled then
+  if typed == nil or typed == '' then
+    return
+  end
+
+  local keys = split_keys(typed)
+  -- Neovim quirk: the body of a non-typed `<Cmd>...<CR>` (e.g. nvim-cmp's
+  -- `<Cmd>lua require"cmp.utils.feedkeys".run(1)<CR>`) can leak into the next
+  -- key's {typed}, giving e.g. `un(1)<CR>i`. A real multi-key {typed} (a typed
+  -- mapping LHS) practically never has <CR> before its last key, so drop
+  -- everything up to such a <CR>.
+  for j = #keys - 1, 1, -1 do
+    if keys[j] == '\r' then
+      keys = { unpack(keys, j + 1) }
+      break
+    end
+  end
+  -- Drop which-key replays before any other check, so an unlogged replay
+  -- (paused, skipped buffer) can't linger and swallow a later real key.
+  local names = {}
+  for _, raw in ipairs(keys) do
+    local k = vim.fn.keytrans(raw)
+    if k ~= '' and not ignored[k] and not is_replay(k) then
+      names[#names + 1] = k
+    end
+  end
+  if #names == 0 or vim.g.keylog_disabled then
     return
   end
 
@@ -183,27 +284,12 @@ local function on_key(_, typed)
 
   local prefix = string.format('{"t":%d,"m":%s,"k":', t, enc(mode))
   local suffix = string.format(',"ft":%s,"f":%s}', enc(vim.bo[bufnr].filetype), enc(f))
-  local keys = split_keys(typed)
-  -- Neovim quirk: the body of a non-typed `<Cmd>...<CR>` (e.g. nvim-cmp's
-  -- `<Cmd>lua require"cmp.utils.feedkeys".run(1)<CR>`) can leak into the next
-  -- key's {typed}, giving e.g. `un(1)<CR>i`. A real multi-key {typed} (a typed
-  -- mapping LHS) practically never has <CR> before its last key, so drop
-  -- everything up to such a <CR>.
-  for j = #keys - 1, 1, -1 do
-    if keys[j] == '\r' then
-      keys = { unpack(keys, j + 1) }
-      break
+  for _, k in ipairs(names) do
+    if mask and is_printable(k) then
+      k = MASK
     end
-  end
-  for _, raw in ipairs(keys) do
-    local k = vim.fn.keytrans(raw)
-    if k ~= '' and not ignored[k] then
-      if mask and is_printable(k) then
-        k = MASK
-      end
-      lines[#lines + 1] = prefix .. enc(k) .. suffix
-      has_pending = true
-    end
+    lines[#lines + 1] = prefix .. enc(k) .. suffix
+    has_pending = true
   end
 
   if has_pending then
@@ -229,6 +315,25 @@ function M.setup()
 
   local group = vim.api.nvim_create_augroup('custom-keylog', { clear = true })
   vim.api.nvim_create_autocmd('VimLeavePre', { group = group, callback = M.flush })
+
+  -- which-key is usually lazy-loaded (kickstart: on VimEnter), after this runs.
+  hook_which_key()
+  vim.api.nvim_create_autocmd('User', {
+    group = group,
+    pattern = 'LazyLoad',
+    callback = function(ev)
+      if ev.data == 'which-key.nvim' then
+        hook_which_key()
+      end
+    end,
+  })
+  vim.api.nvim_create_autocmd('VimEnter', {
+    group = group,
+    once = true,
+    callback = function()
+      vim.schedule(hook_which_key)
+    end,
+  })
 
   vim.api.nvim_create_user_command('KeylogToggle', function()
     vim.g.keylog_disabled = not vim.g.keylog_disabled
