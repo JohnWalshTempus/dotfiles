@@ -3,6 +3,7 @@
 {{- $email := promptStringOnce . "email" "git email" -}}
 {{- $signingKey := promptStringOnce . "signingKey" "gpg signing key id (blank for none)" "" -}}
 {{- $githubUser := promptStringOnce . "githubUser" "github username (blank for none)" "" -}}
+{{- $remote := promptBoolOnce . "remote" "shared or remote server (pared-down set)" false -}}
 {{- $workRepoUrl := "" -}}
 {{- if $work -}}
 {{-   $workRepoUrl = promptStringOnce . "workRepoUrl" "work layer git ssh url (blank for local-only)" "" -}}
@@ -10,6 +11,7 @@
 
 [data]
     work = {{ $work }}
+    remote = {{ $remote }}
     name = {{ $name | quote }}
     email = {{ $email | quote }}
     signingKey = {{ $signingKey | quote }}

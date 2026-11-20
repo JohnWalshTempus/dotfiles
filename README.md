@@ -36,6 +36,7 @@ Answers are stored in `~/.config/chezmoi/chezmoi.toml` and never committed.
 | Prompt | Data key | Controls |
 |---|---|---|
 | work machine | `work` | Enables the optional `workRepoUrl` prompt |
+| shared or remote server | `remote` | Skips kitty, workmux, review-tour, the global gitignore and the Ubuntu install script |
 | git name | `name` | `user.name` |
 | git email | `email` | `user.email` |
 | gpg signing key id | `signingKey` | `user.signingkey` and `commit.gpgsign = true`; blank disables signing |

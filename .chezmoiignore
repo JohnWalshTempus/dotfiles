@@ -9,3 +9,15 @@ LICENSE
 .tmux/bin
 .tmux/bin/**
 {{- end }}
+{{- /* index, not .remote: machines initialised before this prompt existed have no such key */ -}}
+{{- if index . "remote" }}
+10-install-packages-ubuntu.sh
+.gitignore_global
+.zsh/claude.zsh
+.config/kitty
+.config/kitty/**
+.config/workmux
+.config/workmux/**
+.local/share/review-tour
+.local/share/review-tour/**
+{{- end }}
