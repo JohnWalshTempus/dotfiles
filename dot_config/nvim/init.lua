@@ -1056,7 +1056,11 @@ require('lazy').setup({
 })
 
 -- Private key logger for the Vim course. See lua/custom/keylog.lua.
-require('custom.keylog').setup()
+-- Only on machines where the course is checked out (same check as
+-- lua/custom/plugins/vimcourse.lua), so shared and work servers don't log.
+if vim.fn.isdirectory(vim.fn.expand '~/projects/vim-course/nvim') == 1 then
+  require('custom.keylog').setup()
+end
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
