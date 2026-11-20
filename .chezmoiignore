@@ -20,4 +20,6 @@ LICENSE
 .config/workmux/**
 .local/share/review-tour
 .local/share/review-tour/**
+.claude/skills/chezmoi
+.claude/skills/chezmoi/**
 {{- end }}

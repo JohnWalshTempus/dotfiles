@@ -52,6 +52,10 @@ These are never managed by this repo and are picked up when present:
 - `~/.gitconfig.local`, included last so its values win
 - `~/.tmux.conf.local`, sourced last so its bindings win
 
+## Claude Code skill
+
+`~/.claude/skills/chezmoi` installs a `/chezmoi` skill for Claude Code that pulls and applies this repo with a review step, or pushes local changes after checking every OS/work/remote variant still renders. Boxes without a push credential save the change to `~/dotfiles-outbox/` as a patch instead. It is skipped on remote profiles.
+
 ## Optional dependencies
 
 ```sh
