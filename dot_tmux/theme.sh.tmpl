@@ -15,6 +15,11 @@ set -g status-left-length 32
 set -g status-right-length 150
 set -g status-interval 5
 
+# True while F12 has handed keys to a nested tmux. Everything below that carries
+# its own colour dims on this, so the whole bar reads as inactive. Defined before
+# its first use: tmux expands $tm_off when each line is parsed.
+tm_off="#{==:#{client_key_table},off}"
+
 {{ if eq .chezmoi.os "darwin" -}}
 set-option -g status-style fg=$tm_color_active
 # Dimmed style for the F12 toggle (user option, format-expanded; ~/.tmux.conf
@@ -49,9 +54,6 @@ battery_percent="#(~/.tmux/bin/bash/battery_indicator.sh)"
 {{ else -}}
 battery_percent=""
 {{ end -}}
-# True while F12 has handed keys to a nested tmux. Everything below that carries
-# its own colour dims on this, so the whole bar reads as inactive.
-tm_off="#{==:#{client_key_table},off}"
 # Loud solid badge while keys are off (bold black on yellow)
 tm_keys_off="#{?$tm_off,#[fg=colour16 bg=colour226 bold] KEYS OFF · F12 to return #[default] ,}"
 tm_date="#[fg=#{?$tm_off,$tm_color_inactive,$tm_color_red}] %a %h-%d %H:%M"
