@@ -910,7 +910,9 @@ require('lazy').setup({
     build = ':TSUpdate',
     config = function()
       local ts = require 'nvim-treesitter'
-      local can_install = vim.fn.executable 'tree-sitter' == 1
+      -- The CLI has to run, not just exist: prebuilt binaries need a newer
+      -- glibc than older distros (e.g. Debian 12) ship.
+      local can_install = vim.fn.executable 'tree-sitter' == 1 and vim.system({ 'tree-sitter', '--version' }):wait().code == 0
 
       -- Install these parsers on startup (a no-op once they're installed).
       local startup_install -- async task; nil without the tree-sitter CLI

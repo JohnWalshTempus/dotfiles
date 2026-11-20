@@ -61,10 +61,9 @@ return {
 
       -- You'll need to check that you have the required things installed
       -- online, please don't ask me how to install them :)
-      ensure_installed = {
-        -- Update this to ensure that you have the debuggers for the langs you want
-        'delve',
-      },
+      -- Update this to ensure that you have the debuggers for the langs you want.
+      -- delve is built with `go install`, so only ask for it where Go exists.
+      ensure_installed = vim.fn.executable 'go' == 1 and { 'delve' } or {},
     }
 
     -- Dap UI setup
