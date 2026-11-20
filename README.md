@@ -54,7 +54,7 @@ These are never managed by this repo and are picked up when present:
 
 ## Claude Code skill
 
-`~/.claude/skills/chezmoi` installs a `/chezmoi` skill for Claude Code that pulls and applies this repo with a review step, or pushes local changes after checking every OS/work/remote variant still renders. Boxes without a push credential save the change to `~/dotfiles-outbox/` as a patch instead. It is skipped on remote profiles.
+`~/.claude/skills/chezmoi` installs a `/chezmoi` skill for Claude Code that pulls and applies this repo with a review step, or pushes local changes after checking every OS/work/remote variant still renders. Boxes without a push credential save the change to `~/dotfiles-outbox/` as a patch instead, and the machine that publishes pulls it in with `/chezmoi pull from <box>`, which reviews and applies it before pushing. It is skipped on remote profiles.
 
 ## Optional dependencies
 
