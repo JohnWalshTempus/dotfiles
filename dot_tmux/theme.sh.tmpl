@@ -75,10 +75,11 @@ set -g status-right $tm_keys_off$tm_date' '$battery_percent' '
 set -g set-titles on
 set -g set-titles-string "#h · #S:#W"
 
-# CUE 3 (hotkey hint): a faint second status line. Remove: delete these two
-# lines (or `set -g status on` for one line).
+# CUE 3 (hotkey hint): a faint second status line. #{prefix} is read when the
+# bar is drawn, so a prefix changed in ~/.tmux.conf.local shows correctly.
+# Remove: delete these two lines (or `set -g status on` for one line).
 set -g status 2
-set -g status-format[1] "#[align=left,fg=colour250] C-Space prefix · a send prefix · F12 pass keys to nested tmux · C-Space C-s workmux dashboard"
+set -g status-format[1] "#[align=left,fg=colour250] #{prefix} prefix · a send prefix · F12 pass keys to nested tmux · #{prefix} C-s workmux dashboard"
 
 # CUE 4 (pane tint, off by default): uncomment to tint server panes slightly.
 # set -g window-style bg=colour234
